@@ -1,5 +1,5 @@
 const QRCode = require('qrcode');
-const { addImage, listImages } = require('../services/imageStore');
+const { addImage, listImages, listQrTest } = require('../services/imageStore');
 
 exports.generatePNG = async (req, res, next) => {
   const text = req.query.text || req.query.data || 'Hello, QR!';
@@ -24,25 +24,54 @@ exports.generateDataUrl = async (req, res, next) => {
 };
 
 // POST /qr/upload
-// Accept { imageUrl, description } in JSON and store it in-memory
-exports.uploadImage = (req, res, next) => {
+// Accept { imageUrl, description } in JSON and store it in DB
+exports.uploadImage = async (req, res, next) => {
   try {
-    const { imageUrl, description } = req.body || {};
-    if (!imageUrl || typeof imageUrl !== 'string') {
-      return res.status(400).json({ error: '`imageUrl` is required and must be a string' });
-    }
-    if (!description || typeof description !== 'string') {
-      return res.status(400).json({ error: '`description` is required and must be a string' });
+    // Accept either camelCase or snake_case keys
+    const body = req.body || {};
+    const image_url = body.image_url || body.imageUrl;
+    const description = body.description === undefined ? null : body.description;
+    const title = body.title === undefined ? null : body.title;
+
+    if (!image_url || typeof image_url !== 'string') {
+      return res.status(400).json({ error: '`image_url` is required and must be a string' });
     }
 
-    // simple url validation
+    // Validate URL
     try {
-      new URL(imageUrl);
+      new URL(image_url);
     } catch (e) {
-      return res.status(400).json({ error: '`imageUrl` must be a valid URL' });
+      return res.status(400).json({ error: '`image_url` must be a valid URL' });
     }
 
-    const item = addImage({ imageUrl, description });
+    const item = await addImage({ imageUrl: image_url, description, title });
+    return res.status(201).json({ image: item });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /qr/dummy
+// Returns a placeholder image URL to use for testing uploads
+exports.getDummy = (req, res) => {
+  const url = 'https://via.placeholder.com/300.png?text=QR+Test';
+  res.json({ image_url: url, description: 'Dummy QR test image' });
+};
+
+// POST /qr/dummy
+// Accepts multipart/form-data { file: <image>, description, title }
+// Stores the file in /uploads and inserts a row into qr_test with image_url pointing to the uploaded file
+exports.uploadDummyFile = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'file is required (field name: file)' });
+
+    const description = req.body.description === undefined ? null : req.body.description;
+    const title = req.body.title === undefined ? null : req.body.title;
+
+    // Build accessible URL for the uploaded file
+    const image_url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+
+    const item = await addImage({ imageUrl: image_url, description, title });
     return res.status(201).json({ image: item });
   } catch (err) {
     next(err);
@@ -50,24 +79,12 @@ exports.uploadImage = (req, res, next) => {
 };
 
 // GET /qr/images
-// Returns both stored images and generated QR image URLs
-exports.getImages = (req, res, next) => {
+// Return rows from qr_test (SELECT * FROM qr_test)
+exports.getImages = async (req, res, next) => {
   try {
-    const q = req.query.q || req.query.text || 'Hello, QR!';
-    const count = Math.max(1, Math.min(10, parseInt(req.query.count, 10) || 3));
-    const host = req.protocol + '://' + req.get('host');
-
-    const generated = Array.from({ length: count }).map((_, i) => {
-      const text = count === 1 ? q : `${q} ${i + 1}`;
-      const imageUrl = `${host}/qr?text=${encodeURIComponent(text)}&size=300`;
-      const description = `QR for: ${text}`;
-      return { imageUrl, description };
-    });
-
-    // stored images (newest first)
-    const stored = listImages();
-
-    res.json({ images: [...stored, ...generated] });
+    const limit = Math.max(1, Math.min(1000, parseInt(req.query.limit, 10) || 100));
+    const rows = await listQrTest(limit);
+    return res.json({ images: rows });
   } catch (err) {
     next(err);
   }

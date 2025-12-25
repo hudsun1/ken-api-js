@@ -2,6 +2,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
+const path = require('path');
 const qrRouter = require('./routes/qr');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -11,6 +12,9 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+
+// serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 app.get('/', (req, res) => res.json({ status: 'ok', message: 'QR API' }));
 

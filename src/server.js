@@ -2,6 +2,7 @@ require('dotenv').config();
 const http = require('http');
 const app = require('./app');
 const config = require('./config');
+const { pool } = require('./db');
 
 const server = http.createServer(app);
 
@@ -16,7 +17,15 @@ function start(port = config.PORT) {
 
 function stop() {
   return new Promise((resolve, reject) => {
-    server.close((err) => (err ? reject(err) : resolve()));
+    server.close(async (err) => {
+      if (err) return reject(err);
+      try {
+        await pool.end();
+      } catch (e) {
+        // ignore pool shutdown errors
+      }
+      resolve();
+    });
   });
 }
 
