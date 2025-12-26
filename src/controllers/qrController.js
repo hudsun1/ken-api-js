@@ -25,32 +25,66 @@ exports.generateDataUrl = async (req, res, next) => {
 
 // POST /qr/upload
 // Accept { imageUrl, description } in JSON and store it in DB
+// exports.uploadImage = async (req, res, next) => {
+//   try {
+//     // Accept either camelCase or snake_case keys
+//     const body = req.body || {};
+//     const image_url = body.image_url || body.imageUrl;
+//     const description = body.description === undefined ? null : body.description;
+//     const title = body.title === undefined ? null : body.title;
+
+//     if (!image_url || typeof image_url !== 'string') {
+//       return res.status(400).json({ error: '`image_url` is required and must be a string' });
+//     }
+
+//     // Validate URL
+//     try {
+//       new URL(image_url);
+//     } catch (e) {
+//       return res.status(400).json({ error: '`image_url` must be a valid URL' });
+//     }
+
+//     const item = await addImage({ imageUrl: image_url, description, title });
+//     return res.status(201).json({ image: item });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
 exports.uploadImage = async (req, res, next) => {
   try {
-    // Accept either camelCase or snake_case keys
     const body = req.body || {};
-    const image_url = body.image_url || body.imageUrl;
-    const description = body.description === undefined ? null : body.description;
-    const title = body.title === undefined ? null : body.title;
+    const image_data = body.image_url || body.imageUrl;
+    const { description = null, title = null } = body;
 
-    if (!image_url || typeof image_url !== 'string') {
-      return res.status(400).json({ error: '`image_url` is required and must be a string' });
+    if (!image_data) {
+      return res.status(400).json({ error: 'Image data is required' });
     }
 
-    // Validate URL
-    try {
-      new URL(image_url);
-    } catch (e) {
-      return res.status(400).json({ error: '`image_url` must be a valid URL' });
+    const base64Regex = /^data:image\/(png|jpeg|jpg|heic|heif|webp);base64,/;
+    
+    if (!base64Regex.test(image_data)) {
+      return res.status(400).json({ 
+        error: 'Unsupported format. Please provide a valid Base64 string (JPG, PNG, HEIC, or WebP).' 
+      });
     }
 
-    const item = await addImage({ imageUrl: image_url, description, title });
+    // Base64 string length * 0.75 gives approximate size in bytes
+    const sizeInBytes = image_data.length * 0.75;
+    if (sizeInBytes > 10 * 1024 * 1024) { // 10MB Limit
+      return res.status(413).json({ error: 'Image is too large. Max size 10MB.' });
+    }
+
+    
+    // Note: If image_data is HEIC, your addImage function/service 
+    // should ideally convert it to JPG using a library like 'sharp'.
+    const item = await addImage({ imageUrl: image_data, description, title });
+    
     return res.status(201).json({ image: item });
   } catch (err) {
     next(err);
   }
 };
-
 // GET /qr/dummy
 // Returns a placeholder image URL to use for testing uploads
 exports.getDummy = (req, res) => {
