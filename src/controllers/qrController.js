@@ -79,12 +79,14 @@ exports.uploadDummyFile = async (req, res, next) => {
 };
 
 // GET /qr/images
-// Return rows from qr_test (SELECT * FROM qr_test)
+// Return rows from qr_test with pagination: 50 images per page, supports `page` query param (default 1)
 exports.getImages = async (req, res, next) => {
   try {
-    const limit = Math.max(1, Math.min(1000, parseInt(req.query.limit, 10) || 100));
-    const rows = await listQrTest(limit);
-    return res.json({ images: rows });
+    const perPage = 50;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const offset = (page - 1) * perPage;
+    const rows = await listQrTest(perPage, offset);
+    return res.json({ images: rows, page, perPage });
   } catch (err) {
     next(err);
   }

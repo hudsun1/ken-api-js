@@ -14,10 +14,10 @@ async function listImages(limit = 100) {
   return res.rows.map(r => ({ id: r.id, image_url: r.image_url, description: r.description, created_at: r.created_at }));
 }
 
-// New: read directly from qr_test table
-async function listQrTest(limit = 100) {
-  const text = 'SELECT * FROM qr_test ORDER BY id DESC LIMIT $1';
-  const res = await db.query(text, [limit]);
+// New: read directly from qr_test table with pagination support (limit + offset)
+async function listQrTest(limit = 50, offset = 0) {
+  const text = 'SELECT * FROM qr_test ORDER BY id DESC LIMIT $1 OFFSET $2';
+  const res = await db.query(text, [limit, offset]);
   // return rows as-is (columns come from the table; may include title, image_url, description, id)
   return res.rows.map(r => ({ ...r }));
 }

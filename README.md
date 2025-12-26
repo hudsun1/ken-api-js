@@ -7,7 +7,7 @@ Endpoints:
 - GET / -> JSON status
 - GET /qr?text=Hello%20World&size=300 -> returns PNG image of QR
 - GET /qr/dataurl?text=Hello%20World -> returns JSON { dataUrl }
-- GET /qr/images -> returns rows from the `qr_test` table (SELECT * FROM qr_test); supports query param `limit` (default 100)
+- GET /qr/images -> returns rows from the `qr_test` table (SELECT * FROM qr_test); supports query param `page` (default 1); returns 50 images per page
 - POST /qr/upload -> accepts JSON { image_url (required), description (optional), title (optional) }, returns 201 with created item (response keys are the DB column names, snake_case)
 - GET /qr/dummy -> returns an HTML upload page where you can select a file and submit description/title
 - POST /qr/dummy -> accepts multipart/form-data with field `file` (image), optional fields `description` and `title`; stores file in `/uploads` and returns the created row
